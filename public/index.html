@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <!-- Make viewport responsive for mobile -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>3D Multiplayer Shooter</title>
+    <style>
+        /* Basic reset */
+        * {
+            box-sizing: border-box;
+        }
+        body {
+            margin: 0;
+            overflow: hidden; /* Prevent scrolling */
+            font-family: Arial, sans-serif; /* Mobile friendly font */
+            background-color: #222;
+            /* Prevent pull-to-refresh and text selection */
+            overscroll-behavior: none;
+            user-select: none;
+            -webkit-user-select: none; /* Safari */
+            -ms-user-select: none; /* IE 10+ */
+            -webkit-tap-highlight-color: transparent; /* Remove tap highlight */
+        }
+        canvas {
+            display: block;
+        }
+
+        /* --- UI Elements --- */
+        #ui {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 16px; /* Adjusted for mobile */
+            text-shadow: 1px 1px 2px black;
+            pointer-events: none;
+            z-index: 10;
+        }
+        #crosshair {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            width: 20px;
+            height: 20px;
+            transform: translate(-50%, -50%);
+            pointer-events: none;
+            z-index: 10;
+        }
+        #crosshair::before, #crosshair::after {
+            content: '';
+            position: absolute;
+            background-color: rgba(255, 255, 255, 0.7);
+            box-shadow: 0 0 2px black;
+        }
+        #crosshair::before { width: 2px; height: 20px; left: 9px; }
+        #crosshair::after { width: 20px; height: 2px; top: 9px; }
+        #health-bar-container { width: 150px; height: 12px; background-color: #555; margin-top: 5px; border: 1px solid #222; }
+        #health-bar { background-color: red; height: 100%; width: 100%; }
+        #ammo { margin-top: 8px; }
+
+        /* --- Menu --- */
+        #menu {
+            position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+            text-align: center; background-color: rgba(0, 0, 0, 0.8); padding: 20px;
+            border-radius: 10px; color: white; z-index: 100; border: 1px solid #444;
+            width: 90%; /* Responsive width */
+            max-width: 350px;
+        }
+        #menu h2 { margin-top: 0; color: #eee; font-size: 1.5em; }
+        #menu input { display: block; margin: 15px auto; padding: 12px; width: 90%; border-radius: 4px; border: 1px solid #555; background-color: #333; color: white; font-size: 1em; }
+        #menu button { margin-top: 15px; padding: 12px 20px; background-color: #4CAF50; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 1em; transition: background-color 0.2s; }
+        #menu button:hover { background-color: #45a049; }
+
+        /* --- Kill Feed --- */
+        #kill-feed {
+            position: absolute; top: 10px; right: 10px; color: white; text-align: right;
+            width: 40%; max-width: 200px; /* Adjusted width */
+            z-index: 10; pointer-events: none; font-size: 12px; /* Smaller font */
+        }
+        .kill-message { margin-bottom: 4px; background-color: rgba(0, 0, 0, 0.6); padding: 4px 6px; border-radius: 3px; text-shadow: 1px 1px 1px black; opacity: 0; transform: translateX(100%); animation: slideInFadeOut 5s forwards; }
+        @keyframes slideInFadeOut { 0% { opacity: 0; transform: translateX(100%); } 10% { opacity: 1; transform: translateX(0); } 90% { opacity: 1; transform: translateX(0); } 100% { opacity: 0; transform: translateX(100%); } }
+
+        /* --- Touch Controls --- */
+        .touch-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 35%; /* Area for controls */
+            pointer-events: none; /* Container doesn't block */
+            z-index: 5; /* Above canvas, below UI/Menu */
+            display: none; /* Initially hidden */
+        }
+        /* Make controls visible when game is active */
+        body.game-active .touch-controls {
+            display: block;
+        }
+
+        .touch-joystick {
+            position: absolute;
+            bottom: 15px; /* Position from bottom */
+            left: 15px;  /* Position from left */
+            width: 120px;
+            height: 120px;
+            background-color: rgba(128, 128, 128, 0.3);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.4);
+            pointer-events: auto; /* Enable touch on this element */
+        }
+        .touch-joystick-handle {
+             position: absolute;
+             top: 50%;
+             left: 50%;
+             width: 50px;
+             height: 50px;
+             background-color: rgba(200, 200, 200, 0.5);
+             border-radius: 50%;
+             transform: translate(-50%, -50%); /* Center handle */
+             pointer-events: none; /* Handle doesn't intercept touch */
+        }
+
+        .touch-buttons {
+            position: absolute;
+            bottom: 15px;
+            right: 15px;
+            display: flex;
+            flex-direction: column; /* Stack buttons vertically */
+            align-items: center; /* Center buttons horizontally */
+            pointer-events: auto;
+        }
+
+        .touch-button {
+            width: 70px;
+            height: 70px;
+            background-color: rgba(0, 150, 255, 0.4);
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            border-radius: 50%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            color: white;
+            font-weight: bold;
+            font-size: 14px; /* Smaller text on button */
+            margin-bottom: 15px; /* Space between buttons */
+            pointer-events: auto; /* Enable touch on buttons */
+            text-shadow: 1px 1px 1px black;
+        }
+        .touch-button:last-child {
+             margin-bottom: 0; /* No margin on last button */
+        }
+        .touch-button.reload { /* Smaller reload button */
+            width: 50px;
+            height: 50px;
+            font-size: 12px;
+            background-color: rgba(255, 165, 0, 0.4); /* Orange */
+        }
+        /* Style for active button presses */
+         .touch-button.active {
+             background-color: rgba(0, 150, 255, 0.7);
+             transform: scale(0.95); /* Slight shrink effect */
+         }
+          .touch-button.reload.active {
+              background-color: rgba(255, 165, 0, 0.7);
+          }
+
+
+    </style>
+</head>
+<body>
+    <!-- Menu -->
+    <div id="menu">
+        <h2>Simple 3D Shooter</h2>
+        <input type="text" id="player-name" placeholder="Enter your name" maxlength="16">
+        <button id="play-button">Play</button>
+    </div>
+
+    <!-- In-Game UI -->
+    <div id="ui" style="display: none;">
+        <div id="score">Score: 0</div>
+        <div id="health">Health: 100</div>
+        <div id="health-bar-container"><div id="health-bar"></div></div>
+        <div id="ammo">Ammo: 30/90</div>
+    </div>
+
+    <!-- Crosshair (optional for mobile) -->
+    <div id="crosshair" style="display: none;"></div>
+
+    <!-- Kill Feed -->
+    <div id="kill-feed"></div>
+
+    <!-- Touch Controls Container -->
+    <div class="touch-controls" id="touch-controls">
+        <!-- Joystick Area -->
+        <div class="touch-joystick" id="touch-joystick">
+            <div class="touch-joystick-handle" id="touch-joystick-handle"></div>
+        </div>
+
+        <!-- Buttons Area -->
+        <div class="touch-buttons">
+            <div class="touch-button" id="touch-shoot-button">SHOOT</div>
+            <div class="touch-button" id="touch-jump-button">JUMP</div>
+            <div class="touch-button reload" id="touch-reload-button">R</div>
+        </div>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="game.js"></script>
+</body>
+</html>
