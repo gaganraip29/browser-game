@@ -706,8 +706,8 @@ function movePlayer(delta) {
          // <<< FIX: Inverted Controls - Swapped W/S logic >>>
          // W should move forward (positive Z relative to player)
          // S should move backward (negative Z relative to player)
-        if (keysPressed['w']) { moveZ += 1; isMoving = true; }
-        if (keysPressed['s']) { moveZ -= 1; isMoving = true; }
+        if (keysPressed['w']) { moveZ -= 1; isMoving = true; }
+        if (keysPressed['s']) { moveZ += 1; isMoving = true; }
         if (keysPressed['a']) { moveX -= 1; isMoving = true; } // Left
         if (keysPressed['d']) { moveX += 1; isMoving = true; } // Right
     }
