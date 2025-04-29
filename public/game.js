@@ -262,7 +262,7 @@ function updateJoystickVisuals() {
          // This maps screen Y to movement vector Y. Screen UP is negative dy, angle is -PI/2.
          // sin(-PI/2) is -1. The negative sign makes vector.y = +1 when joystick is UP.
          // This assumes moveZ = +1 corresponds to FORWARD in movePlayer.
-         joystickData.vector.y = -Math.sin(angle) * (clampedDistance / maxDistance);
+         joystickData.vector.y = Math.sin(angle) * (clampedDistance / maxDistance);
     } else {
          joystickData.vector.x = 0;
          joystickData.vector.y = 0;
