@@ -16,7 +16,7 @@ const config = { // config can be const as its properties aren't reassigned whol
     gravity: -25,    // Units per second squared
     bulletSpeed: 80, // Units per second
     bulletLifetime: 2, // Seconds
-    maxHealth: 300,
+    maxHealth: 100,
     respawnTime: 3000, // milliseconds
     ammoCapacity: 30,
     reloadTime: 2000, // milliseconds
@@ -96,13 +96,60 @@ let touchState = {
 };
 
 // --- Initialization ---
-
+/*
 function init() {
     setupScene();
     setupLighting();
     createEnvironment();
     setupEventListeners(); // Sets up keyboard/mouse AND touch
     connectToServer();
+}
+*/
+
+function init() {
+    // Check if we're on a mobile device
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    
+    setupScene();
+    setupLighting();
+    createEnvironment(isMobile);
+    setupEventListeners(); // Sets up keyboard/mouse AND touch
+    connectToServer();
+}
+
+function createEnvironment(isMobile = false) {
+    // Create ground
+    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Adjust counts based on device capability
+    const environmentDensity = isMobile ? 0.4 : 1.0; // 40% density on mobile
+    
+    // Generate random objects across the map
+    generateRandomTrees(Math.floor(40 * environmentDensity));
+    generateRandomBuildings(Math.floor(8 * environmentDensity));
+    generateRandomStones(Math.floor(30 * environmentDensity));
+    generateRandomGrass(Math.floor(150 * environmentDensity));
+    
+    // Create original boxes too for compatibility
+    const boxGeometry = new THREE.BoxGeometry(5, 5, 5);
+    const boxMaterial = new THREE.MeshStandardMaterial({ color: 0xaaaaaa, roughness: 0.8 });
+    const positions = [
+        { x: 15, y: 2.5, z: 10 }, { x: -10, y: 2.5, z: -15 }, { x: 0, y: 2.5, z: 20 },
+        { x: -20, y: 2.5, z: 5 }, { x: 25, y: 2.5, z: -20 },
+    ];
+    positions.forEach(pos => {
+        const box = new THREE.Mesh(boxGeometry, boxMaterial);
+        box.position.set(pos.x, pos.y, pos.z);
+        box.castShadow = true;
+        box.receiveShadow = true;
+        box.userData.isCollidable = true;
+        scene.add(box);
+    });
 }
 
 function setupScene() {
@@ -140,7 +187,7 @@ function setupLighting() {
     scene.add(hemiLight);
 }
 
-function createEnvironment() {
+/*function createEnvironment() {
     const groundGeometry = new THREE.PlaneGeometry(200, 200);
     const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
     ground = new THREE.Mesh(groundGeometry, groundMaterial);
@@ -160,6 +207,439 @@ function createEnvironment() {
         box.position.set(pos.x, pos.y, pos.z); // Place boxes at their base y=0
         box.castShadow = true; box.receiveShadow = true; scene.add(box);
     });
+}
+*/
+
+function createEnvironment() {
+    // Create ground
+    const groundGeometry = new THREE.PlaneGeometry(200, 200);
+    const groundMaterial = new THREE.MeshLambertMaterial({ color: 0x4CAF50 });
+    ground = new THREE.Mesh(groundGeometry, groundMaterial);
+    ground.rotation.x = -Math.PI / 2;
+    ground.receiveShadow = true;
+    scene.add(ground);
+
+    // Generate random objects across the map
+    generateRandomTrees(50);  // 50 trees
+    generateRandomBuildings(10);  // 10 buildings
+    generateRandomStones(40);  // 40 stones
+    generateRandomGrass(200);  // 200 grass patches
+}
+
+// Tree generation function
+function generateRandomTrees(count) {
+    const treeTypes = [
+        createPineTree,
+        createOakTree
+    ];
+    
+    for (let i = 0; i < count; i++) {
+        const x = (Math.random() - 0.5) * 180;  // Keep away from map edges
+        const z = (Math.random() - 0.5) * 180;
+        
+        // Choose random tree type
+        const createTreeFunction = treeTypes[Math.floor(Math.random() * treeTypes.length)];
+        const tree = createTreeFunction();
+        
+        tree.position.set(x, 0, z);
+        tree.userData.isEnvironment = true;
+        tree.userData.isCollidable = true;
+        scene.add(tree);
+    }
+}
+
+function createPineTree() {
+    const treeGroup = new THREE.Group();
+    
+    // Tree trunk
+    const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.8, 5, 8);
+    const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 2.5;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    treeGroup.add(trunk);
+
+    // Tree leaves (cone)
+    const leavesGeometry = new THREE.ConeGeometry(3, 7, 8);
+    const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x2E8B57 });
+    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+    leaves.position.y = 7;
+    leaves.castShadow = true;
+    leaves.receiveShadow = true;
+    treeGroup.add(leaves);
+    
+    // Make the tree size slightly random
+    const scale = 0.7 + Math.random() * 0.6;
+    treeGroup.scale.set(scale, scale, scale);
+    
+    return treeGroup;
+}
+
+function createOakTree() {
+    const treeGroup = new THREE.Group();
+    
+    // Tree trunk
+    const trunkGeometry = new THREE.CylinderGeometry(0.7, 1, 6, 8);
+    const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+    trunk.position.y = 3;
+    trunk.castShadow = true;
+    trunk.receiveShadow = true;
+    treeGroup.add(trunk);
+
+    // Tree leaves (sphere)
+    const leavesGeometry = new THREE.SphereGeometry(4, 8, 8);
+    const leavesMaterial = new THREE.MeshLambertMaterial({ color: 0x228B22 });
+    const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+    leaves.position.y = 8;
+    leaves.castShadow = true;
+    leaves.receiveShadow = true;
+    treeGroup.add(leaves);
+    
+    // Make the tree size slightly random
+    const scale = 0.7 + Math.random() * 0.5;
+    treeGroup.scale.set(scale, scale, scale);
+    
+    return treeGroup;
+}
+
+// Building generation function
+function generateRandomBuildings(count) {
+    const buildingTypes = [
+        createSimpleHouse,
+        createTallBuilding
+    ];
+    
+    // Ensure buildings aren't too close to center spawn point
+    const minDistanceFromCenter = 20;
+    
+    for (let i = 0; i < count; i++) {
+        let x, z;
+        let distanceFromCenter;
+        
+        // Keep generating until we have a valid position
+        do {
+            x = (Math.random() - 0.5) * 160;  // Keep away from map edges
+            z = (Math.random() - 0.5) * 160;
+            distanceFromCenter = Math.sqrt(x*x + z*z);
+        } while (distanceFromCenter < minDistanceFromCenter);
+        
+        // Choose random building type
+        const createBuildingFunction = buildingTypes[Math.floor(Math.random() * buildingTypes.length)];
+        const building = createBuildingFunction();
+        
+        // Rotate building randomly
+        building.rotation.y = Math.random() * Math.PI * 2;
+        building.position.set(x, 0, z);
+        building.userData.isEnvironment = true;
+        building.userData.isCollidable = true;
+        scene.add(building);
+    }
+}
+
+function createSimpleHouse() {
+    const house = new THREE.Group();
+    
+    // House base
+    const baseGeometry = new THREE.BoxGeometry(10, 6, 10);
+    const baseMaterial = new THREE.MeshLambertMaterial({ color: 0xD3D3D3 });
+    const base = new THREE.Mesh(baseGeometry, baseMaterial);
+    base.position.y = 3;
+    base.castShadow = true;
+    base.receiveShadow = true;
+    house.add(base);
+    
+    // Roof
+    const roofGeometry = new THREE.ConeGeometry(7.1, 4, 4);
+    const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x8B0000 });
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+    roof.position.y = 8;
+    roof.rotation.y = Math.PI / 4;
+    roof.castShadow = true;
+    roof.receiveShadow = true;
+    house.add(roof);
+    
+    // Door
+    const doorGeometry = new THREE.BoxGeometry(2, 3, 0.2);
+    const doorMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 });
+    const door = new THREE.Mesh(doorGeometry, doorMaterial);
+    door.position.set(0, 1.5, 5.1);
+    house.add(door);
+    
+    // Windows
+    const windowGeometry = new THREE.BoxGeometry(1.5, 1.5, 0.2);
+    const windowMaterial = new THREE.MeshLambertMaterial({ color: 0x87CEEB });
+    
+    // Front windows
+    const window1 = new THREE.Mesh(windowGeometry, windowMaterial);
+    window1.position.set(-3, 4, 5.1);
+    house.add(window1);
+    
+    const window2 = new THREE.Mesh(windowGeometry, windowMaterial);
+    window2.position.set(3, 4, 5.1);
+    house.add(window2);
+    
+    // Side windows
+    const window3 = new THREE.Mesh(windowGeometry, windowMaterial);
+    window3.position.set(5.1, 4, 0);
+    window3.rotation.y = Math.PI / 2;
+    house.add(window3);
+    
+    const window4 = new THREE.Mesh(windowGeometry, windowMaterial);
+    window4.position.set(-5.1, 4, 0);
+    window4.rotation.y = Math.PI / 2;
+    house.add(window4);
+    
+    return house;
+}
+
+function createTallBuilding() {
+    const building = new THREE.Group();
+    
+    // Number of floors (random between 2-5)
+    const numFloors = 2 + Math.floor(Math.random() * 4);
+    const floorHeight = 4;
+    const buildingWidth = 12;
+    const buildingDepth = 12;
+    
+    for (let i = 0; i < numFloors; i++) {
+        const floorGeometry = new THREE.BoxGeometry(buildingWidth, floorHeight, buildingDepth);
+        const floorMaterial = new THREE.MeshLambertMaterial({ 
+            color: i === 0 ? 0x696969 : 0x808080  // First floor darker
+        });
+        const floor = new THREE.Mesh(floorGeometry, floorMaterial);
+        floor.position.y = (i * floorHeight) + (floorHeight / 2);
+        floor.castShadow = true;
+        floor.receiveShadow = true;
+        building.add(floor);
+        
+        // Add windows to each floor
+        addWindowsToFloor(floor, i, floorHeight, buildingWidth);
+    }
+    
+    // Add a roof structure
+    const roofGeometry = new THREE.BoxGeometry(buildingWidth, 1, buildingDepth);
+    const roofMaterial = new THREE.MeshLambertMaterial({ color: 0x454545 });
+    const roof = new THREE.Mesh(roofGeometry, roofMaterial);
+    roof.position.y = numFloors * floorHeight + 0.5;
+    building.add(roof);
+    
+    return building;
+}
+
+function addWindowsToFloor(floor, floorNumber, floorHeight, buildingWidth) {
+    const windowSize = 1.5;
+    const windowGeometry = new THREE.PlaneGeometry(windowSize, windowSize);
+    const windowMaterial = new THREE.MeshLambertMaterial({ 
+        color: 0x87CEEB, 
+        side: THREE.DoubleSide,
+        emissive: 0x333333
+    });
+    
+    // Window positions on each side (N, E, S, W)
+    const sides = [
+        { rotation: 0, z: buildingWidth/2 + 0.1 },          // North
+        { rotation: Math.PI/2, x: buildingWidth/2 + 0.1 },  // East
+        { rotation: Math.PI, z: -buildingWidth/2 - 0.1 },   // South
+        { rotation: -Math.PI/2, x: -buildingWidth/2 - 0.1 } // West
+    ];
+    
+    sides.forEach(side => {
+        const numWindows = 3;  // 3 windows per side
+        const spacing = buildingWidth / (numWindows + 1);
+        
+        for (let i = 1; i <= numWindows; i++) {
+            const window = new THREE.Mesh(windowGeometry, windowMaterial);
+            
+            if (side.x !== undefined) {
+                window.position.set(
+                    side.x,
+                    0,  // relative to floor
+                    (i * spacing) - (buildingWidth/2)
+                );
+            } else {
+                window.position.set(
+                    (i * spacing) - (buildingWidth/2),
+                    0,  // relative to floor
+                    side.z
+                );
+            }
+            
+            window.rotation.y = side.rotation;
+            floor.add(window);
+        }
+    });
+}
+
+// Stone generation function
+function generateRandomStones(count) {
+    for (let i = 0; i < count; i++) {
+        const x = (Math.random() - 0.5) * 190;
+        const z = (Math.random() - 0.5) * 190;
+        
+        const stone = createStone();
+        stone.position.set(x, 0, z);
+        stone.userData.isEnvironment = true;
+        stone.userData.isCollidable = true;
+        scene.add(stone);
+    }
+}
+
+function createStone() {
+    const stoneGroup = new THREE.Group();
+    
+    // Stone types: small, medium, large, boulder, rock cluster
+    const stoneType = Math.floor(Math.random() * 5);
+    
+    switch(stoneType) {
+        case 0: // Small stone
+            const smallStoneGeometry = new THREE.DodecahedronGeometry(0.8, 0);
+            const smallStoneMaterial = new THREE.MeshLambertMaterial({ color: 0x808080 });
+            const smallStone = new THREE.Mesh(smallStoneGeometry, smallStoneMaterial);
+            smallStone.position.y = 0.4;
+            smallStone.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            smallStone.castShadow = true;
+            smallStone.receiveShadow = true;
+            stoneGroup.add(smallStone);
+            break;
+            
+        case 1: // Medium stone
+            const mediumStoneGeometry = new THREE.DodecahedronGeometry(1.5, 1);
+            const mediumStoneMaterial = new THREE.MeshLambertMaterial({ color: 0x707070 });
+            const mediumStone = new THREE.Mesh(mediumStoneGeometry, mediumStoneMaterial);
+            mediumStone.position.y = 0.75;
+            mediumStone.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            mediumStone.castShadow = true;
+            mediumStone.receiveShadow = true;
+            stoneGroup.add(mediumStone);
+            break;
+            
+        case 2: // Large stone
+            const largeStoneGeometry = new THREE.DodecahedronGeometry(2.5, 1);
+            const largeStoneMaterial = new THREE.MeshLambertMaterial({ color: 0x606060 });
+            const largeStone = new THREE.Mesh(largeStoneGeometry, largeStoneMaterial);
+            largeStone.position.y = 1.25;
+            largeStone.rotation.set(
+                Math.random() * Math.PI,
+                Math.random() * Math.PI,
+                Math.random() * Math.PI
+            );
+            largeStone.castShadow = true;
+            largeStone.receiveShadow = true;
+            stoneGroup.add(largeStone);
+            break;
+            
+        case 3: // Boulder
+            const boulderGeometry = new THREE.SphereGeometry(3, 8, 6);
+            const boulderMaterial = new THREE.MeshLambertMaterial({ color: 0x505050 });
+            const boulder = new THREE.Mesh(boulderGeometry, boulderMaterial);
+            boulder.position.y = 3;
+            // Deform the boulder a bit by scaling
+            boulder.scale.set(1, 0.8, 1);
+            boulder.castShadow = true;
+            boulder.receiveShadow = true;
+            stoneGroup.add(boulder);
+            break;
+            
+        case 4: // Rock cluster
+            for (let i = 0; i < 5; i++) {
+                const clusterStoneGeometry = new THREE.DodecahedronGeometry(0.5 + Math.random() * 1.2, 0);
+                const clusterStoneMaterial = new THREE.MeshLambertMaterial({ 
+                    color: 0x505050 + Math.random() * 0x202020 
+                });
+                const clusterStone = new THREE.Mesh(clusterStoneGeometry, clusterStoneMaterial);
+                clusterStone.position.set(
+                    (Math.random() - 0.5) * 3,
+                    0.5 + Math.random() * 0.5,
+                    (Math.random() - 0.5) * 3
+                );
+                clusterStone.rotation.set(
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI,
+                    Math.random() * Math.PI
+                );
+                clusterStone.castShadow = true;
+                clusterStone.receiveShadow = true;
+                stoneGroup.add(clusterStone);
+            }
+            break;
+    }
+    
+    return stoneGroup;
+}
+
+// Grass generation function
+function generateRandomGrass(count) {
+    for (let i = 0; i < count; i++) {
+        const x = (Math.random() - 0.5) * 190;
+        const z = (Math.random() - 0.5) * 190;
+        
+        const grass = createGrassClump();
+        grass.position.set(x, 0, z);
+        scene.add(grass);
+    }
+}
+
+function createGrassClump() {
+    const grassGroup = new THREE.Group();
+    
+    // Decide type of grass: regular grass patch or tall grass
+    const grassType = Math.random() > 0.7 ? 'tall' : 'regular';
+    
+    if (grassType === 'regular') {
+        // Regular grass patch
+        const grassGeometry = new THREE.CircleGeometry(1 + Math.random() * 1.5, 8);
+        const grassMaterial = new THREE.MeshLambertMaterial({ 
+            color: 0x3A5F0B + Math.random() * 0x102010,
+            side: THREE.DoubleSide
+        });
+        const grassPatch = new THREE.Mesh(grassGeometry, grassMaterial);
+        grassPatch.rotation.x = -Math.PI / 2; // Lay flat on ground
+        grassPatch.position.y = 0.05; // Slightly above ground to prevent z-fighting
+        grassGroup.add(grassPatch);
+    } else {
+        // Tall grass (cross planes)
+        const numBlades = 3 + Math.floor(Math.random() * 5);
+        const height = 0.8 + Math.random() * 1.2;
+        
+        for (let i = 0; i < numBlades; i++) {
+            const bladeGeometry = new THREE.PlaneGeometry(0.4, height);
+            const bladeMaterial = new THREE.MeshLambertMaterial({
+                color: 0x3A5F0B + Math.random() * 0x102010,
+                side: THREE.DoubleSide,
+                transparent: true,
+                opacity: 0.9
+            });
+            const blade = new THREE.Mesh(bladeGeometry, bladeMaterial);
+            
+            // Position randomly within small radius
+            blade.position.set(
+                (Math.random() - 0.5) * 0.8,
+                height / 2,
+                (Math.random() - 0.5) * 0.8
+            );
+            
+            // Rotate randomly
+            blade.rotation.y = Math.random() * Math.PI;
+            // Tilt slightly
+            blade.rotation.x = (Math.random() - 0.5) * 0.3;
+            blade.rotation.z = (Math.random() - 0.5) * 0.3;
+            
+            blade.castShadow = true;
+            grassGroup.add(blade);
+        }
+    }
+    
+    return grassGroup;
 }
 
 function setupEventListeners() {
@@ -428,24 +908,24 @@ function connectToServer() {
 
     socket.on('player-moved', (data) => {
         if (data.id !== socketId && players[data.id] && players[data.id].mesh) {
-             const targetPosition = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
-             players[data.id].mesh.position.lerp(targetPosition, 0.3);
-             players[data.id].mesh.rotation.y = data.rotation.y;
+            const targetPosition = new THREE.Vector3(data.position.x, data.position.y, data.position.z);
+            players[data.id].mesh.position.lerp(targetPosition, 0.3);
+            players[data.id].mesh.rotation.y = data.rotation.y;
         }
     });
 
     socket.on('bullet-fired', (bulletData) => { createBullet(bulletData); });
 
     socket.on('player-hit', (data) => {
-          if (data.victimId === socketId) { handleLocalPlayerHit(data.victimHealth, data.attackerId); flashScreen(0xff0000, 150); }
-          else if (players[data.victimId]) { players[data.victimId].health = data.victimHealth; }
+        if (data.victimId === socketId) { handleLocalPlayerHit(data.victimHealth, data.attackerId); flashScreen(0xff0000, 150); }
+        else if (players[data.victimId]) { players[data.victimId].health = data.victimHealth; }
     });
 
     socket.on('player-died', (data) => {
-           console.log(`${data.attackerName} killed ${data.victimName}`);
-           addKillFeedMessage(`${data.attackerName} killed ${data.victimName}`);
-           if (data.victimId === socketId) { handleLocalPlayerDeath(); }
-           else if (players[data.victimId]) {
+        console.log(`${data.attackerName} killed ${data.victimName}`);
+        addKillFeedMessage(`${data.attackerName} killed ${data.victimName}`);
+        if (data.victimId === socketId) { handleLocalPlayerDeath(); }
+        else if (players[data.victimId]) {
                 if (players[data.victimId].mesh) { players[data.victimId].mesh.visible = false; }
                 players[data.victimId].health = 0;
            }
@@ -672,6 +1152,7 @@ function updateBullets(delta) {
         } catch(error) { console.error(`[DEBUG] Error updating/removing bullet ${id}:`, error); if (bullet && bullet.mesh) scene.remove(bullet.mesh); delete bullets[id]; }
     }
 }
+/*
 // --- Movement ---
 function movePlayer(delta) {
     if (!playerMesh) return;
@@ -776,6 +1257,161 @@ function movePlayer(delta) {
         isOnGround = true;
     }
 }
+*/
+function movePlayer(delta) {
+    if (!playerMesh) return;
+
+    // Apply gravity
+    if (!isOnGround || playerVelocity.y > 0) {
+        playerVelocity.y += config.gravity * delta;
+    }
+
+    if (!gameState.isAlive || gameState.respawning) {
+        // Simplified dead movement (just gravity and floor collision)
+        playerMesh.position.y += playerVelocity.y * delta;
+        const deadBodyFloor = 0 + config.playerRadius; // Bottom of cylinder touches ground
+        if (playerMesh.position.y < deadBodyFloor) {
+            playerMesh.position.y = deadBodyFloor;
+            playerVelocity.y = 0;
+        }
+        return;
+    }
+
+    // --- Process Movement Input ---
+    const moveSpeed = config.movementSpeed;
+    const forwardDirection = new THREE.Vector3();
+    const rightDirection = new THREE.Vector3();
+    playerMesh.getWorldDirection(forwardDirection);
+    forwardDirection.y = 0; forwardDirection.normalize();
+    rightDirection.crossVectors(camera.up, forwardDirection).normalize();
+
+    let moveX = 0; let moveZ = 0; let isMoving = false;
+
+    if (isPointerLocked) {
+        // W should move forward (positive Z relative to player)
+        // S should move backward (negative Z relative to player)
+        if (keysPressed['w']) { moveZ -= 1; isMoving = true; }
+        if (keysPressed['s']) { moveZ += 1; isMoving = true; }
+        if (keysPressed['a']) { moveX -= 1; isMoving = true; } // Left
+        if (keysPressed['d']) { moveX += 1; isMoving = true; } // Right
+    }
+
+    if (joystickData.active && (joystickData.vector.x !== 0 || joystickData.vector.y !== 0)) {
+        moveZ = joystickData.vector.y; // Joystick Up/Down maps to Forward/Backward
+        moveX = joystickData.vector.x; // Joystick Left/Right maps to Left/Right
+        isMoving = true;
+    }
+
+    if (isMoving) {
+        const combinedMove = forwardDirection.clone().multiplyScalar(moveZ).add(rightDirection.clone().multiplyScalar(moveX));
+        if (Math.abs(moveZ) > 0.01 && Math.abs(moveX) > 0.01) { combinedMove.normalize(); }
+        combinedMove.multiplyScalar(moveSpeed * delta);
+        
+        // Store current position for collision detection
+        const currentPosition = playerMesh.position.clone();
+        const potentialPosition = currentPosition.clone().add(combinedMove);
+        
+        // Apply map boundaries
+        const mapBoundary = 99;
+        potentialPosition.x = Math.max(-mapBoundary + config.playerRadius, Math.min(mapBoundary - config.playerRadius, potentialPosition.x));
+        potentialPosition.z = Math.max(-mapBoundary + config.playerRadius, Math.min(mapBoundary - config.playerRadius, potentialPosition.z));
+        
+        // Check for collisions with environment objects
+        if (!checkEnvironmentCollision(currentPosition, potentialPosition)) {
+            playerMesh.position.copy(potentialPosition);
+        }
+    }
+
+    // --- Vertical Movement (Jump/Gravity) ---
+    // Player's feet position for raycasting
+    const feetY = playerMesh.position.y - config.playerHeight / 2;
+    const rayOriginOffset = 0.1;
+    const downRayOrigin = new THREE.Vector3(playerMesh.position.x, feetY + rayOriginOffset, playerMesh.position.z);
+    const rayLength = rayOriginOffset + 0.15;
+    const downRaycaster = new THREE.Raycaster(downRayOrigin, new THREE.Vector3(0, -1, 0), 0, rayLength);
+
+    // Collision filter
+    let groundCheckObjectArray = scene.children.filter(obj =>
+        obj !== playerMesh && obj.type === 'Mesh' && obj.visible && !obj.userData.isBullet
+    );
+
+    const intersects = downRaycaster.intersectObjects(groundCheckObjectArray, true); // Enable recursive checking for groups
+    isOnGround = intersects.length > 0;
+
+    const groundCheckY = playerMesh.position.y - config.playerHeight / 2; // Position of player's feet
+
+    if (isOnGround) {
+        const groundY = intersects[0].point.y;
+        // Snap feet to ground if close/penetrating
+        if (groundCheckY < groundY + 0.05) {
+            playerMesh.position.y = groundY + config.playerHeight / 2;
+            playerVelocity.y = Math.max(0, playerVelocity.y); // Stop falling only when truly grounded
+        }
+
+        let jumpRequested = (isPointerLocked && keysPressed[' ']) || touchState.jump;
+        if (jumpRequested) {
+            playerVelocity.y = config.jumpForce;
+            isOnGround = false;
+            touchState.jump = false;
+            keysPressed[' '] = false;
+        }
+    }
+
+    // Apply vertical velocity
+    playerMesh.position.y += playerVelocity.y * delta;
+
+    // Final absolute floor check (base of the player model)
+    const absoluteFloor = 0; // Ground plane Y
+    if (playerMesh.position.y < absoluteFloor + config.playerHeight / 2) {
+        playerMesh.position.y = absoluteFloor + config.playerHeight / 2;
+        playerVelocity.y = 0;
+        isOnGround = true;
+    }
+}
+
+// Check for collisions with environment objects
+function checkEnvironmentCollision(currentPosition, potentialPosition) {
+    // Create a vector for the movement direction
+    const moveDirection = potentialPosition.clone().sub(currentPosition).normalize();
+    
+    // Distance to check (slightly more than player radius)
+    const collisionDistance = config.playerRadius * 1.2;
+    
+    // Create a raycaster for collision detection
+    const raycaster = new THREE.Raycaster(
+        new THREE.Vector3(currentPosition.x, currentPosition.y - config.playerHeight * 0.3, currentPosition.z), 
+        moveDirection, 
+        0, 
+        collisionDistance
+    );
+    
+    // Get collidable objects (filter objects with isCollidable flag)
+    const collidableObjects = scene.children.filter(obj => 
+        obj !== playerMesh && obj.userData && obj.userData.isCollidable
+    );
+    
+    // Get descendants of groups that are collidable
+    const collidableMeshes = [];
+    collidableObjects.forEach(object => {
+        if (object.type === 'Mesh') {
+            collidableMeshes.push(object);
+        } else {
+            // Get all meshes from groups recursively
+            object.traverse(child => {
+                if (child.type === 'Mesh') {
+                    collidableMeshes.push(child);
+                }
+            });
+        }
+    });
+    
+    // Check for intersections
+    const intersects = raycaster.intersectObjects(collidableMeshes, false);
+    
+    // If there are intersections, return true (collision detected)
+    return intersects.length > 0;
+}
+
 // --- Shooting and Reloading ---
 function shootBullet() {
     if (!gameState.isAlive || gameState.respawning || gameState.isReloading || !gameState.canShoot) return;
@@ -809,10 +1445,24 @@ function handleLocalPlayerRespawn(respawnData) {
 }
 // --- UI Updates ---
 function updateUI() {
-    scoreElement.textContent = `Score: ${gameState.score}`; healthElement.textContent = `Health: ${gameState.health}`;
-    const healthPercentage = Math.max(0, gameState.health) / config.maxHealth; healthBarElement.style.width = `${healthPercentage * 100}%`;
-    if (gameState.isReloading) { ammoElement.textContent = `Ammo: Reloading... [${gameState.ammoReserve}]`; }
-    else { ammoElement.textContent = `Ammo: ${gameState.ammo}/${gameState.ammoReserve}`; }
+    scoreElement.textContent = `Score: ${gameState.score}`; 
+    healthElement.textContent = `Health: ${gameState.health}`;
+    
+    // Force health to be a number and clamp between 0 and maxHealth
+    const currentHealth = Math.min(config.maxHealth, Math.max(0, parseInt(gameState.health) || 0));
+    const healthPercentage = currentHealth / config.maxHealth;
+    
+    // Set width with correct percentage and ensure it's applied
+    healthBarElement.style.width = `${healthPercentage * 100}%`;
+    
+    // Debug info - remove after fixing
+    console.log(`Health: ${gameState.health}, Percentage: ${healthPercentage * 100}%, Width: ${healthBarElement.style.width}`);
+    
+    if (gameState.isReloading) { 
+        ammoElement.textContent = `Ammo: Reloading... [${gameState.ammoReserve}]`; 
+    } else { 
+        ammoElement.textContent = `Ammo: ${gameState.ammo}/${gameState.ammoReserve}`; 
+    }
 }
 function addKillFeedMessage(message) {
     const feedSizeLimit = 5; const messageDuration = 5000; const messageElement = document.createElement('div'); messageElement.className = 'kill-message'; messageElement.textContent = message;
